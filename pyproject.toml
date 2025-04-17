@@ -5,3 +5,22 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[dependency-groups]
+serve = [
+    "fastapi>=0.115.12",
+    "lightgbm>=4.6.0",
+    "scikit-learn>=1.6.1",
+]
+train = [
+    "lightgbm>=4.6.0",
+    "optuna>=4.3.0",
+    "rdata>=0.11.2",
+    "requests>=2.32.3",
+    "scikit-learn>=1.6.1",
+]
+dev = [
+    "ipywidgets>=8.1.6",
+    "matplotlib>=3.10.1",
+    "pre-commit>=4.2.0",
+]
