@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
 [dependency-groups]
 serve = [
     "fastapi>=0.115.12",
@@ -18,13 +22,16 @@ serve = [
 train = [
     "lightgbm>=4.6.0",
     "optuna>=4.3.0",
+    "pydantic-settings>=2.8.1",
     "rdata>=0.11.2",
     "requests>=2.32.3",
     "scikit-learn>=1.6.1",
 ]
 dev = [
+    "httpx>=0.28.1",
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.6",
     "matplotlib>=3.10.1",
     "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
 ]

@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     REPORT_PATH: str = "reports/"
     # final parameters path
     FINAL_PARAMS_PATH: str = "parameters/"
+    # hyperparameter search space path
+    HYPERPARAM_CONFIG_PATH: str = os.path.join(
+        pathlib.Path(__file__).parent.parent.resolve(), "config", "hyperparams.json"
+    )
     # blob stub path
     BLOB_STUB_PATH: str = os.path.join(
         pathlib.Path(__file__).parent.parent.resolve(), "blob_store_stub"

@@ -1,5 +1,6 @@
 import os
 import pickle
+import json
 
 import optuna
 import pandas as pd
@@ -16,6 +17,19 @@ from sklearn.model_selection import train_test_split
 from refactored.source.settings import settings
 
 
+def load_hyperparameter_config():
+    """
+    Load hyperparameter search space configuration from JSON file.
+    If the file doesn't exist, return None and default values will be used.
+    """
+    try:
+        with open(settings.HYPERPARAM_CONFIG_PATH, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Warning: Could not load hyperparameter config: {e}")
+        return None
+
+
 def train_model(
     X_train: pd.DataFrame, y_train: pd.DataFrame, model_path: str
 ) -> LGBMClassifier:
@@ -25,18 +39,37 @@ def train_model(
             X_train, y_train, test_size=0.2, random_state=42
         )
 
+        # Load hyperparameter config
+        hp_config = load_hyperparameter_config()
+        
         # Define the hyperparameter search space
-        param = {
-            "objective": "binary",
-            "n_jobs": -1,
-            "n_estimators": trial.suggest_int("n_estimators", 10, 200),
-            "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
-            "max_depth": trial.suggest_int("max_depth", 3, 10),
-            "num_leaves": trial.suggest_int("num_leaves", 20, 150),
-            "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
-            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-            "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
-        }
+        param = {"objective": "binary", "n_jobs": -1}
+        
+        if hp_config:
+            # Use values from config file
+            for key, value in hp_config.items():
+                if key in ["objective", "n_jobs"]:
+                    param[key] = value
+                elif isinstance(value, dict) and "type" in value:
+                    if value["type"] == "int":
+                        param[key] = trial.suggest_int(
+                            key, value["low"], value["high"]
+                        )
+                    elif value["type"] == "float":
+                        log = value.get("log", False)
+                        param[key] = trial.suggest_float(
+                            key, value["low"], value["high"], log=log
+                        )
+        else:
+            param.update({
+                "n_estimators": trial.suggest_int("n_estimators", 10, 200),
+                "learning_rate": trial.suggest_float("learning_rate", 0.001, 0.3, log=True),
+                "max_depth": trial.suggest_int("max_depth", 3, 10),
+                "num_leaves": trial.suggest_int("num_leaves", 20, 150),
+                "min_child_samples": trial.suggest_int("min_child_samples", 5, 100),
+                "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+                "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
+            })
 
         # Initialize the model with the chosen set of hyperparameters
         model = LGBMClassifier(**param, verbosity=-1)
@@ -75,7 +108,6 @@ def train_model(
     with open(settings.MODEL_PATH, "wb") as f:
 
         pickle.dump(best_model, f)
-        print(f"Model saved to {settings.MODEL_PATH}")
 
     params_file = os.path.join(
         settings.BLOB_STUB_PATH, settings.FINAL_PARAMS_PATH, "best_params.txt"
