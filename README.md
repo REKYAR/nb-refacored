@@ -10,7 +10,7 @@ The project follows a modular architecture with clear separation of concerns:
 refactored/
 ├── blob_store_stub/          # Simulated blob storage (would be replaced with actual storage in production)
 │   ├── models/               # Trained model artifacts
-│   ├── parameters/           # Best hyperparameters 
+│   ├── parameters/           # Best hyperparameters
 │   └── reports/              # Model evaluation reports and visualizations
 ├── config/                   # Configuration files
 ├── data/                     # Input data

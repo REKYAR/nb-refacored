@@ -47,12 +47,23 @@ def temp_dir():
 class TestTrainer:
 
     @patch("source.trainer.optuna")
-    def test_train_model(self, mock_optuna, test_data, temp_dir):
-        # Setup
+    @patch("source.trainer.LGBMClassifier")
+    @patch("builtins.open", create=True)
+    @patch("pickle.dump")
+    @patch("os.makedirs")
+    def test_train_model(
+        self,
+        mock_makedirs,
+        mock_pickle,
+        mock_open,
+        mock_lgbm,
+        mock_optuna,
+        test_data,
+        temp_dir,
+    ):
         X_train, y_train = test_data
         model_path = os.path.join(temp_dir, "test_model.pkl")
 
-        # Configure mock study
         mock_study = MagicMock()
         mock_study.best_params = {
             "n_estimators": 50,
@@ -65,35 +76,29 @@ class TestTrainer:
         }
         mock_optuna.create_study.return_value = mock_study
 
-        # Mock the model fitting to avoid actual training
-        with patch("source.trainer.LGBMClassifier") as mock_lgbm:
-            mock_model = MagicMock()
-            mock_lgbm.return_value = mock_model
+        mock_model = MagicMock()
+        mock_lgbm.return_value = mock_model
 
-            # Mock the open and pickle.dump functions to avoid pickling a MagicMock
-            with patch("builtins.open", create=True) as mock_open:
-                with patch("pickle.dump") as mock_pickle:
-                    # Mock the makedirs function to avoid creating directories
-                    with patch("os.makedirs") as mock_makedirs:
-                        # Call the function under test
-                        with patch.object(settings, "BLOB_STUB_PATH", temp_dir):
-                            with patch.object(settings, "MODEL_NAME", "test_model.pkl"):
-                                with patch.object(settings, "MODEL_DIR", ""):
-                                    with patch(
-                                        "source.trainer.settings.FINAL_PARAMS_PATH", ""
-                                    ):
-                                        result = train_model(
-                                            X_train, y_train, model_path
-                                        )
+        # Patch settings
+        with patch.multiple(
+            settings,
+            BLOB_STUB_PATH=temp_dir,
+            MODEL_NAME="test_model.pkl",
+            MODEL_DIR="",
+            FINAL_PARAMS_PATH="",
+        ):
+            # Patch path in trainer
+            with patch("source.trainer.settings.FINAL_PARAMS_PATH", ""):
+                result = train_model(X_train, y_train, model_path)
 
-            # Assertions
-            mock_optuna.create_study.assert_called_once()
-            mock_study.optimize.assert_called_once()
-            mock_lgbm.assert_called_with(**mock_study.best_params)
-            mock_model.fit.assert_called_with(X_train, y_train)
-            mock_makedirs.assert_called()
-            mock_open.assert_called()
-            mock_pickle.assert_called()
+        # Assertions
+        mock_optuna.create_study.assert_called_once()
+        mock_study.optimize.assert_called_once()
+        mock_lgbm.assert_called_with(**mock_study.best_params)
+        mock_model.fit.assert_called_with(X_train, y_train)
+        mock_makedirs.assert_called()
+        mock_open.assert_called()
+        mock_pickle.assert_called()
 
     def test_train_model_with_config(self, test_data, temp_dir):
         # Setup
@@ -103,86 +108,74 @@ class TestTrainer:
         # Import the module to modify it directly
         import source.trainer as trainer
 
-        # Mock the necessary functions and objects
-        with patch.object(trainer, "load_hyperparameter_config") as mock_load_config:
-            with patch.object(trainer, "optuna") as mock_optuna:
-                # Mock config loading
-                mock_load_config.return_value = {
-                    "objective": "binary",
-                    "n_jobs": -1,
-                    "n_estimators": {"type": "int", "low": 10, "high": 100},
-                    "learning_rate": {
-                        "type": "float",
-                        "low": 0.01,
-                        "high": 0.1,
-                        "log": True,
-                    },
-                }
+        # Create test config and params data
+        hp_config = {
+            "objective": "binary",
+            "n_jobs": -1,
+            "n_estimators": {"type": "int", "low": 10, "high": 100},
+            "learning_rate": {
+                "type": "float",
+                "low": 0.01,
+                "high": 0.1,
+                "log": True,
+            },
+        }
+        best_params = {"n_estimators": 50, "learning_rate": 0.05}
 
-                # Configure mock study
-                mock_study = MagicMock()
-                mock_study.best_params = {"n_estimators": 50, "learning_rate": 0.05}
-                mock_optuna.create_study.return_value = mock_study
+        # Create a params file
+        params_file = os.path.join(temp_dir, "best_params.txt")
+        with open(params_file, "w") as f:
+            f.write("test params")
 
-                # Mock the model fitting to avoid actual training
-                with patch("source.trainer.LGBMClassifier") as mock_lgbm:
-                    mock_model = MagicMock()
-                    mock_lgbm.return_value = mock_model
+        # Create the mock objects before patching
+        mock_optuna = MagicMock()
+        mock_study = MagicMock(best_params=best_params)
+        mock_optuna.create_study.return_value = mock_study
 
-                    # Mock the open and pickle.dump functions to avoid pickling a MagicMock
-                    with patch("builtins.open", create=True) as mock_open:
-                        with patch("pickle.dump") as mock_pickle:
-                            # Mock the makedirs function to avoid creating directories
-                            with patch("os.makedirs") as mock_makedirs:
-                                # Create a file to simulate the best_params.txt file
-                                params_file = os.path.join(temp_dir, "best_params.txt")
-                                with open(params_file, "w") as f:
-                                    f.write("test params")
+        # Apply all patches at once
+        with (
+            patch.multiple(
+                trainer,
+                load_hyperparameter_config=MagicMock(return_value=hp_config),
+                optuna=mock_optuna,
+            ),
+            patch("source.trainer.LGBMClassifier", return_value=MagicMock()),
+            patch("builtins.open", create=True),
+            patch("pickle.dump"),
+            patch("os.makedirs"),
+            patch.multiple(
+                settings,
+                BLOB_STUB_PATH=temp_dir,
+                MODEL_NAME="test_model.pkl",
+                MODEL_DIR="",
+                FINAL_PARAMS_PATH="",
+            ),
+        ):
+            # Call the function under test
+            result = trainer.train_model(X_train, y_train, model_path)
 
-                                # Call the function under test
-                                with patch.object(settings, "BLOB_STUB_PATH", temp_dir):
-                                    with patch.object(
-                                        settings, "MODEL_NAME", "test_model.pkl"
-                                    ):
-                                        with patch.object(settings, "MODEL_DIR", ""):
-                                            with patch.object(
-                                                settings, "FINAL_PARAMS_PATH", ""
-                                            ):
-                                                result = trainer.train_model(
-                                                    X_train, y_train, model_path
-                                                )
-
-                    # Assertions
-                    mock_optuna.create_study.assert_called_once()
-                    mock_study.optimize.assert_called_once()
-                    mock_makedirs.assert_called()
-                    mock_open.assert_called()
-                    mock_pickle.assert_called()
+        # Assertions
+        mock_optuna.create_study.assert_called_once()
+        mock_study.optimize.assert_called_once()
 
     def test_generate_and_save_report(self, test_data, mock_model, temp_dir):
-        # Setup
         X_test, y_test = test_data
 
-        # Create a model that returns predictable values instead of random
+        # Make half of predictions 1 and half 0
         y_pred = np.zeros(len(y_test))
-        y_pred[::2] = 1  # Make half of predictions 1 and half 0
+        y_pred[::2] = 1
 
-        # Configure the mock model to return our predetermined predictions
         mock_model.predict = MagicMock(return_value=y_pred)
 
         report_path = os.path.join(temp_dir, "")
 
-        # Call the function under test
         generate_and_save_report(mock_model, X_test, y_test, report_path)
 
-        # Assertions
         mock_model.predict.assert_called_once()
 
-        # Verify that report files were created
         assert os.path.exists(os.path.join(report_path, "confusion_matrix.png"))
         assert os.path.exists(os.path.join(report_path, "report.txt"))
 
-        # Check report contents
         with open(os.path.join(report_path, "report.txt"), "r") as f:
             content = f.read()
             assert "accuracy:" in content

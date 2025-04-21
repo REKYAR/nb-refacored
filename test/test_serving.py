@@ -20,7 +20,6 @@ def mock_model():
     """Create a mock model."""
     model = mock.MagicMock()
     model.predict.return_value = [0]
-    # Return numpy array instead of list to match expected behavior
     import numpy as np
 
     model.predict_proba.return_value = np.array([[0.3, 0.7]])
@@ -48,70 +47,77 @@ def test_reload_model(mock_pickle_load, mock_open, client, mock_model):
     mock_pickle_load.assert_called_once()
 
 
-@mock.patch("source.serve.schema.validate")
 @mock.patch("source.serve.preprocess_data_serving")
-def test_predict_success(mock_preprocess, mock_validate, client, mock_model):
+def test_predict_success(mock_preprocess, client, mock_model):
     """Test the prediction endpoint with valid data."""
-    # Replace the global model with our mock
     with mock.patch("source.serve.model", mock_model):
-        # Prepare test data with all values as strings
         test_data = [
             {
-                "PolNum": "1",
-                "CalYear": "2020",
+                "PolNum": "200114978",
+                "CalYear": "2009",
                 "Gender": "Male",
-                "Type": "A",
-                "Category": "Medium",
+                "Type": "C",
+                "Category": "Large",
                 "Occupation": "Employed",
-                "Age": "30",
-                "Group1": "1",
-                "Bonus": "1",
-                "Poldur": "5",
-                "Value": "1000",
-                "Adind": "1",
-                "SubGroup2": "X",
-                "Group2": "Y",
-                "Density": "1.5",
+                "Age": "25",
+                "Group1": "18",
+                "Bonus": "90",
+                "Poldur": "3",
+                "Value": "15080",
+                "Adind": "0",
+                "SubGroup2": "L46",
+                "Group2": "L",
+                "Density": "72.01288299",
                 "Exppdays": "365",
+                "Numtppd": "1",
+                "Numtpbi": "0",
+                "Indtppd": "0.0",
+                "Indtpbi": "0.0",
             }
         ]
 
-        # Mock the validate and preprocess functions
         df = pd.DataFrame(test_data)
-        mock_validate.return_value = df
         mock_preprocess.return_value = df
 
-        # Make the request
         response = client.post("/predict", json=test_data)
 
-        # Check the response
         assert response.status_code == 200
-        assert response.json() == [0.7]  # From our mock model's predict_proba
+        assert response.json() == [0.7]
 
-        # Verify the mocks were called correctly
-        mock_validate.assert_called_once()
         mock_preprocess.assert_called_once()
         mock_model.predict.assert_called_once()
         mock_model.predict_proba.assert_called_once()
 
 
-@mock.patch("source.serve.schema.validate")
-def test_predict_schema_validation_failure(mock_validate, client):
+def test_predict_schema_validation_failure(client):
     """Test prediction endpoint with invalid data that fails schema validation."""
-    # Replace the global model with a mock
     with mock.patch("source.serve.model", mock.MagicMock()):
-        # Prepare test data
-        test_data = [{"invalid": "data"}]
+        invalid_test_data = [
+            {
+                "PolNum": "not-a-number",  # Should be an integer
+                "CalYear": "1999",  # Out of range (schema requires 2000-2025)
+                "Gender": "Unknown",  # Not in allowed values
+                "Type": "Z",  # Not in allowed values
+                "Category": "XLarge",  # Not in allowed values
+                "Occupation": "Student",  # Not in allowed values
+                "Age": "-10",  # Negative age not allowed
+                "Group1": "18",
+                "Bonus": "90",
+                "Poldur": "-3",  # Negative duration not allowed
+                "Value": "-15080",  # Negative value not allowed
+                "Adind": "2",  # Not in allowed values [0,1]
+                "SubGroup2": "L46",
+                "Group2": "L",
+                "Density": "-72.01",  # Negative density not allowed
+                "Exppdays": "400",  # Out of range (schema requires 0-366)
+                "Numtppd": "1",
+                "Numtpbi": "0",
+                "Indtppd": "0.0",
+                "Indtpbi": "0.0",
+            }
+        ]
 
-        # Mock the validate function to raise an exception
-        mock_validate.side_effect = Exception("Schema validation failed")
+        response = client.post("/predict", json=invalid_test_data)
 
-        # Make the request
-        response = client.post("/predict", json=test_data)
-
-        # Check the response
         assert response.status_code == 200
         assert "schema validation failed" in response.json()
-
-        # Verify the mock was called
-        mock_validate.assert_called_once()
