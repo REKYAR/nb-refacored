@@ -10,17 +10,23 @@ dependencies = []
 pythonpath = [
   "."
 ]
+
+[tool.uv]
+default-groups = ["serve", "train"]
+
 [dependency-groups]
 serve = [
     "fastapi>=0.115.12",
     "lightgbm>=4.6.0",
     "pandera>=0.23.1",
     "pydantic-settings>=2.8.1",
+    "rdata>=0.11.2",
     "scikit-learn>=1.6.1",
     "uvicorn[standard]>=0.34.1",
 ]
 train = [
     "lightgbm>=4.6.0",
+    "matplotlib>=3.10.1",
     "optuna>=4.3.0",
     "pydantic-settings>=2.8.1",
     "rdata>=0.11.2",

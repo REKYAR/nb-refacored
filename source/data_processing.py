@@ -7,7 +7,7 @@ import rdata
 import requests
 from sklearn.preprocessing import OneHotEncoder
 
-from refactored.source.settings import settings
+from source.settings import settings
 
 
 def download_data(url: str, file_path: str) -> None:

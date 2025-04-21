@@ -5,9 +5,9 @@ import fastapi
 import pandas as pd
 from fastapi import FastAPI
 
-from refactored.source.data_processing import preprocess_data_serving
-from refactored.source.models import schema
-from refactored.source.settings import settings
+from source.data_processing import preprocess_data_serving
+from source.models import schema
+from source.settings import settings
 
 app = FastAPI()
 model = pickle.load(open(settings.MODEL_PATH, "rb"))

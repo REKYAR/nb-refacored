@@ -1,7 +1,7 @@
-n_estimators: 144
-learning_rate: 0.2571804594386859
-max_depth: 4
-num_leaves: 89
-min_child_samples: 33
-subsample: 0.6561121945347306
-colsample_bytree: 0.5098153988716025
+n_estimators: 180
+learning_rate: 0.13630829348228335
+max_depth: 5
+num_leaves: 120
+min_child_samples: 67
+subsample: 0.845596808791214
+colsample_bytree: 0.7578914591574029

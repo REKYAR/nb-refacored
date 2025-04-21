@@ -1289,11 +1289,13 @@ serve = [
     { name = "lightgbm" },
     { name = "pandera" },
     { name = "pydantic-settings" },
+    { name = "rdata" },
     { name = "scikit-learn" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 train = [
     { name = "lightgbm" },
+    { name = "matplotlib" },
     { name = "optuna" },
     { name = "pydantic-settings" },
     { name = "rdata" },
@@ -1317,11 +1319,13 @@ serve = [
     { name = "lightgbm", specifier = ">=4.6.0" },
     { name = "pandera", specifier = ">=0.23.1" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },
+    { name = "rdata", specifier = ">=0.11.2" },
     { name = "scikit-learn", specifier = ">=1.6.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.1" },
 ]
 train = [
     { name = "lightgbm", specifier = ">=4.6.0" },
+    { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "optuna", specifier = ">=4.3.0" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "rdata", specifier = ">=0.11.2" },
