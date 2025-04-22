@@ -1,6 +1,4 @@
-import pandas as pd
 import pandera as pa
-from pandera.typing import Series
 
 schema = pa.DataFrameSchema(
     {

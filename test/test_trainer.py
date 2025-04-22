@@ -1,5 +1,4 @@
 import os
-import pickle
 import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -8,7 +7,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from lightgbm import LGBMClassifier
-from sklearn.metrics import accuracy_score
 
 from source.settings import settings
 from source.trainer import generate_and_save_report, train_model
@@ -40,7 +38,6 @@ def temp_dir():
     """Create a temporary directory for test artifacts."""
     tmp_dir = tempfile.mkdtemp()
     yield tmp_dir
-    # Clean up after the test
     shutil.rmtree(tmp_dir)
 
 
@@ -79,7 +76,6 @@ class TestTrainer:
         mock_model = MagicMock()
         mock_lgbm.return_value = mock_model
 
-        # Patch settings
         with patch.multiple(
             settings,
             BLOB_STUB_PATH=temp_dir,
@@ -87,9 +83,9 @@ class TestTrainer:
             MODEL_DIR="",
             FINAL_PARAMS_PATH="",
         ):
-            # Patch path in trainer
+
             with patch("source.trainer.settings.FINAL_PARAMS_PATH", ""):
-                result = train_model(X_train, y_train, model_path)
+                train_model(X_train, y_train, model_path)
 
         # Assertions
         mock_optuna.create_study.assert_called_once()
@@ -122,17 +118,14 @@ class TestTrainer:
         }
         best_params = {"n_estimators": 50, "learning_rate": 0.05}
 
-        # Create a params file
         params_file = os.path.join(temp_dir, "best_params.txt")
         with open(params_file, "w") as f:
             f.write("test params")
 
-        # Create the mock objects before patching
         mock_optuna = MagicMock()
         mock_study = MagicMock(best_params=best_params)
         mock_optuna.create_study.return_value = mock_study
 
-        # Apply all patches at once
         with (
             patch.multiple(
                 trainer,
@@ -151,10 +144,8 @@ class TestTrainer:
                 FINAL_PARAMS_PATH="",
             ),
         ):
-            # Call the function under test
-            result = trainer.train_model(X_train, y_train, model_path)
+            trainer.train_model(X_train, y_train, model_path)
 
-        # Assertions
         mock_optuna.create_study.assert_called_once()
         mock_study.optimize.assert_called_once()
 

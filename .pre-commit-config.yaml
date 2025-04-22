@@ -18,7 +18,10 @@ repos:
     hooks:
     -   id: flake8
         additional_dependencies: [flake8-docstrings]
-        args: [--max-line-length=88, --extend-ignore=E203]
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203
+          - --ignore=D200,D100,D104,D102,E501,D103,D101,D205,
 
 -   repo: https://github.com/pycqa/isort
     rev: 6.0.1

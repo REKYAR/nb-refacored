@@ -1,7 +1,6 @@
 import pickle
 from typing import Dict, List
 
-import fastapi
 import pandas as pd
 from fastapi import FastAPI
 
@@ -40,7 +39,7 @@ def predict(data: List[Dict[str, str]]):
     Returns:
         List[float]: The predicted probabilities.
     """
-    global model
+    global model  # noqa
 
     df = pd.DataFrame(data)
     try:

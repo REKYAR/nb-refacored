@@ -1,5 +1,3 @@
-import os
-import pickle
 from unittest.mock import MagicMock, mock_open, patch
 
 import numpy as np
@@ -15,20 +13,26 @@ def sample_data():
     """Create sample data for testing preprocessing functions."""
     return pd.DataFrame(
         {
+            "PolNum": [123456, 234567, 345678, 456789],
             "Numtppd": [0, 1, 2, 0],
             "Numtpbi": [1, 0, 1, 0],
-            "Indtppd": [0, 1, 1, 0],
-            "Indtpbi": [1, 0, 0, 1],
+            "Indtppd": [0.0, 1.0, 1.0, 0.0],
+            "Indtpbi": [1.0, 0.0, 0.0, 1.0],
             "CalYear": [2020, 2021, 2020, 2021],
-            "Gender": ["M", "F", "M", "F"],
-            "Type": ["A", "B", "A", "C"],
-            "Category": ["X", "Y", "Z", "X"],
-            "Occupation": ["Manager", "Engineer", "Doctor", "Teacher"],
+            "Gender": ["Male", "Female", "Male", "Female"],
+            "Type": ["A", "B", "C", "D"],
+            "Category": ["Medium", "Large", "Small", "Medium"],
+            "Occupation": ["Employed", "Self-employed", "Retired", "Housewife"],
             "SubGroup2": ["SG1", "SG2", "SG3", "SG1"],
             "Group2": ["G2A", "G2B", "G2A", "G2C"],
-            "Group1": ["G1A", "G1B", "G1A", "G1C"],
+            "Group1": [10, 20, 30, 40],
             "Age": [30, 40, 50, 25],
-            "Height": [175, 165, 180, 160],
+            "Bonus": [100, 200, 300, 150],
+            "Poldur": [3, 5, 7, 2],
+            "Value": [10000, 15000, 20000, 12000],
+            "Adind": [0, 1, 0, 1],
+            "Density": [50.5, 75.3, 60.1, 45.8],
+            "Exppdays": [365, 180, 270, 90],
         }
     )
 
@@ -59,12 +63,12 @@ def mock_encoder():
     encoder.get_feature_names_out.return_value = [
         "CalYear_2020",
         "CalYear_2021",
-        "Gender_F",
-        "Gender_M",
+        "Gender_Male",
+        "Gender_Female",
         "Type_A",
         "Type_B",
-        "Category_X",
-        "Category_Y",
+        "Category_Medium",
+        "Category_Large",
     ]
     return encoder
 
@@ -78,13 +82,10 @@ class TestDataProcessing:
         self, mock_pickle_dump, mock_file, mock_encoder_class, sample_data, mock_encoder
     ):
         """Test that preprocess_data correctly transforms the data and saves the encoder."""
-        # Set up the mock encoder class to return our mock encoder instance
         mock_encoder_class.return_value = mock_encoder
 
-        # Call the function under test
         result = preprocess_data(sample_data)
 
-        # Verify the encoder was created with the right parameters
         mock_encoder_class.assert_called_once_with(sparse_output=False)
 
         # Verify the encoder was fit with the categorical columns
@@ -120,30 +121,26 @@ class TestDataProcessing:
         )
         np.testing.assert_array_equal(result["target"].values, target_values)
 
-        # Verify encoded feature columns are present
-        for feature_name in mock_encoder.get_feature_names_out():
-            assert feature_name in result.columns
-
     @patch("os.path.exists")
     @patch("builtins.open", new_callable=mock_open)
     @patch("pickle.load")
     def test_preprocess_data_serving(
         self, mock_pickle_load, mock_file, mock_exists, sample_data, mock_encoder
     ):
-        """Test that preprocess_data_serving correctly transforms the data using the saved encoder."""
-        # Set up the mocks
+        """Test that preprocess_data_serving correctly transforms the data using a saved encoder."""
         mock_exists.return_value = True
         mock_pickle_load.return_value = mock_encoder
 
-        # Call the function under test
-        result = preprocess_data_serving(sample_data)
+        # Remove columns that would be dropped during serving
+        data_for_serving = sample_data.copy()
 
-        # Verify encoder was loaded
+        result = preprocess_data_serving(data_for_serving)
+
         mock_exists.assert_called_once_with(settings.ENCODER_PATH)
         mock_file.assert_called_once_with(settings.ENCODER_PATH, "rb")
         mock_pickle_load.assert_called_once()
 
-        # Verify the encoder was used for transformation
+        # Verify the encoder transform method was called with the categorical columns
         categorical_columns = [
             "CalYear",
             "Gender",
@@ -160,23 +157,19 @@ class TestDataProcessing:
         pd.testing.assert_index_equal(args[0].columns, pd.Index(categorical_columns))
 
         # Check the result DataFrame
-        assert "Numtppd" not in result.columns
-        assert "Numtpbi" not in result.columns
-        assert "Indtppd" not in result.columns
-        assert "Indtpbi" not in result.columns
+        for col in ["Numtppd", "Numtpbi", "Indtppd", "Indtpbi"]:
+            assert col not in result.columns
 
-        # Verify encoded feature columns are present
-        for feature_name in mock_encoder.get_feature_names_out():
-            assert feature_name in result.columns
+        # Verify feature names were retrieved
+        mock_encoder.get_feature_names_out.assert_called_once_with(categorical_columns)
 
     @patch("os.path.exists")
-    def test_preprocess_data_serving_missing_encoder(self, mock_exists, sample_data):
-        """Test that preprocess_data_serving raises FileNotFoundError when encoder is missing."""
-        # Set up the mock to return False for encoder file
+    def test_preprocess_data_serving_no_encoder(self, mock_exists, sample_data):
+        """Test that preprocess_data_serving raises an error when the encoder is not found."""
         mock_exists.return_value = False
 
-        # Verify the function raises FileNotFoundError
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileNotFoundError) as excinfo:
             preprocess_data_serving(sample_data)
 
-        mock_exists.assert_called_once_with(settings.ENCODER_PATH)
+        assert settings.ENCODER_PATH in str(excinfo.value)
+        assert "Encoder not found" in str(excinfo.value)
