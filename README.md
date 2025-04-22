@@ -54,6 +54,12 @@ refactored/
    uv sync --all-groups
    ```
 
+3. Before starting local development run in the /refactored directory
+   ```bash
+   export PYTHONPATH=.
+   ```
+
+
 ## Usage Examples
 
 ### Training a Model
