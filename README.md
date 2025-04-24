@@ -80,7 +80,7 @@ uvicorn source.serve:app --host 0.0.0.0 --port 8080
 
 ### Making Predictions
 
-Once the server is running, you can request predictions by going to swagger http://localhost:8080/#swagger and making an adequate post request, you pass the row like the one of the data table in the request body.
+Once the server is running, you can request predictions by going to swagger http://localhost:8080/docs# and making an adequate post request, you pass the row like the one of the data table in the request body.
 
 ### Running Tests
 
